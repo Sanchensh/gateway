@@ -16,6 +16,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>gateway-core</module>
+        <module>gateway-test</module>
     </modules>
 
     <dependencyManagement>
