@@ -1,2 +1,2 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-  io.sufe.gateway.config.SufeGatewayAutoConfiguration
+  io.sufe.gateway.config.GatewayAutoConfiguration

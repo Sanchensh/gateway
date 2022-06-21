@@ -9,7 +9,11 @@
     </parent>
     <artifactId>gateway-test</artifactId>
     <dependencies>
-        
+        <dependency>
+            <groupId>io.sufe</groupId>
+            <artifactId>gateway-core</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 
 </project>
