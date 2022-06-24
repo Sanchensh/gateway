@@ -3,16 +3,21 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>io.sufe</groupId>
+        <groupId>io.infu</groupId>
         <artifactId>gateway</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
     <artifactId>gateway-test</artifactId>
     <dependencies>
         <dependency>
-            <groupId>io.sufe</groupId>
+            <groupId>io.infu</groupId>
             <artifactId>gateway-core</artifactId>
             <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway</artifactId>
+            <version>3.1.3</version>
         </dependency>
     </dependencies>
 
