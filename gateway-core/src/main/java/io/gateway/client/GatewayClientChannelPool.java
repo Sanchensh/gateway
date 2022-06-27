@@ -19,7 +19,8 @@ public enum GatewayClientChannelPool {
     private static final ConcurrentHashMap<String, ConcurrentLinkedDeque<Channel>> pool = new ConcurrentHashMap<>();
     private static final AtomicReference<GatewayServerProperties> propertiesAtomicReference = new AtomicReference<>();
     private static final AtomicReference<HttpClient> httpClient = new AtomicReference<>();
-
+    private int poolSize;
+    private int dividePoolSize;
     /**
      * @param channel 使用过的Channel
      * @param host    ip + ":" + port 也就是host
@@ -32,10 +33,10 @@ public enum GatewayClientChannelPool {
             pool.put(host, channels);
             return;
         }
-        if (channels.size() < propertiesAtomicReference.get().getClientPoolSize()) { //成功将连接放回池中
+        if (channels.size() < poolSize) { //成功将连接放回池中
             channels.offerFirst(channel);
         } else {//连接放回池中失败，则需要清除所有属性，避免jvm报错——GC overhead limit exceeded
-            ChannelUtil.clearSessionContext(channel);
+            channel.closeFuture();
         }
     }
     /**
@@ -62,15 +63,18 @@ public enum GatewayClientChannelPool {
         Channel channel = null;
         int i = 0;
         if (!CollectionUtils.isEmpty(channels)) {
-            while (Objects.isNull(channel) && i++ < propertiesAtomicReference.get().getClientPoolSize()) {
+            while (Objects.isNull(channel) && i++ < dividePoolSize) {
                 channel = channels.pollFirst();
                 if (Objects.isNull(channel)) {
-                    break;
+                    System.out.println("asdfadsf");
+                    continue;
                 }
                 if (!channel.isActive() || !channel.isOpen()) {// 是否是active状态，可能节点挂掉
+                    System.out.println("asdfadsf");
                     channel = null;
                 }
-                if (Objects.nonNull(ChannelUtil.getSessionContext(channel))) {// 这里防止多线程情况下channel中的SessionContext被覆盖了
+                if (Objects.nonNull(ChannelUtil.getSessionContext(channel))) {// 这里防止多线程情况下channel中的SessionContext被覆盖了\
+                    System.out.println("asdfadsf");
                     channel = null;
                 }
             }
@@ -84,6 +88,8 @@ public enum GatewayClientChannelPool {
     public void init(GatewayServerProperties properties) {
         if (Objects.isNull(propertiesAtomicReference.get())) {
             propertiesAtomicReference.set(properties);
+            poolSize = Math.max(properties.getClientPoolSize(), 32);
+            dividePoolSize = poolSize >= 32 ? poolSize >> 1 : 16;
         }
 
         if (Objects.isNull(httpClient.get())) {

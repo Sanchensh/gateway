@@ -47,7 +47,7 @@ public class GatewayServerProperties {
 
     private int maxChunkSize = 8;
 
-    private int clientPoolSize = 10;
+    private int clientPoolSize = 64;
 
     private Boolean validHeader = true;
 }

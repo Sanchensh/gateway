@@ -12,11 +12,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import lombok.extern.slf4j.Slf4j;
 
-import java.sql.Time;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.TimeUnit;
-
+import static io.gateway.thread.GatewayThreadPool.submit;
 import static io.netty.channel.ChannelFutureListener.CLOSE;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
@@ -30,32 +26,31 @@ public class HttpClientHandler extends ChannelInboundHandlerAdapter {
         //写回数据到客户端，并且需要关闭超时，同时需要清理SessionContext并将Channel放回到池中
         HandleTimeout.stopTimer(sessionContext);
         sessionContext.getServerChannel().writeAndFlush(msg).addListener((ChannelFutureListener) future -> {
+            ChannelUtil.clearSessionContext(ctx.channel());
             if (future.isSuccess()) {
-                ChannelUtil.clearSessionContext(ctx.channel());
-                GatewayClientChannelPool.instance.offer(ctx.channel(), sessionContext.getTargetURL());
-            } else {
-                ChannelUtil.clearSessionContext(ctx.channel());
+//                异步放入池中，避免阻塞导致的性能缺失
+                submit(() -> GatewayClientChannelPool.instance.offer(ctx.channel(), sessionContext.getTargetURL()));
             }
         });
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        log.error("系统内部错误(call es error)，详细信息：", cause);
         SessionContext sessionContext = ChannelUtil.getSessionContext(ctx.channel());
         //先关闭超时，再写回数据
         HandleTimeout.stopTimer(sessionContext);
         GatewayServerException customException = new GatewayServerException(INTERNAL_SERVER_ERROR, cause.getMessage());
         DefaultFullHttpResponse errorResponse = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, Unpooled.directBuffer().writeBytes(customException.getMessage().getBytes()));
-        ctx.channel().closeFuture();
-        ChannelUtil.clearSessionContext(ctx.channel());
         //出现异常，关闭客户端Channel
         sessionContext.getServerChannel().writeAndFlush(errorResponse)
                 .addListener(CLOSE);
+
+        ctx.channel().closeFuture();
+        ChannelUtil.clearSessionContext(ctx.channel());
     }
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        GatewayClientChannelPool.instance.removeChannel(ctx.channel());
+        super.userEventTriggered(ctx,evt);
     }
 }

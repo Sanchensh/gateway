@@ -61,7 +61,7 @@ public class ChannelUtil {
      * @return ip + ":" + port
      */
     public static String host(Channel channel) {
-        InetSocketAddress inetSocketAddress = (InetSocketAddress) channel.remoteAddress();
-        return inetSocketAddress.getHostString() + Constants.COLON + inetSocketAddress.getPort();
+        InetSocketAddress address = (InetSocketAddress) channel.remoteAddress();
+        return address.getHostString() + Constants.COLON + address.getPort();
     }
 }

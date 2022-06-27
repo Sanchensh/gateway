@@ -60,8 +60,8 @@ public class GatewayServerHandler extends ChannelInboundHandlerAdapter {
 
     private void call(SessionContext sessionContext, int retry) {
         //将host设置到context中，可以直接使用，避免字符串的拼接与拆解
-        sessionContext.setTargetURL("key");
-        ChannelDTO channelDTO = GatewayClientChannelPool.instance.poll("localhost", 8888, "key");
+        sessionContext.setTargetURL("localhost:8888");
+        ChannelDTO channelDTO = GatewayClientChannelPool.instance.poll("localhost", 8888, "localhost:8888");
         if (Objects.nonNull(channelDTO.getBootstrap())) { //如果是新建立的连接
             Bootstrap bootstrap = channelDTO.getBootstrap();
             bootstrap.connect().addListener((ChannelFutureListener) future -> {
