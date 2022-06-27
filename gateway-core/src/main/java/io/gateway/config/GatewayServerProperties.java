@@ -28,6 +28,26 @@ public class GatewayServerProperties {
      * 调用服务的线程基数
      */
     private int client = 2;
-
+    /**
+     * 客户端连接gateway的超时时间
+     */
     private int connectTimeout = 5;
+    /**
+     * 客户端重试次数
+     */
+    private int retry = 0;
+    /**
+     * 空闲时间
+     */
+    private int idle = 10;
+
+    private int maxInitialSize = 8;
+
+    private int maxHeaderSize = 8;
+
+    private int maxChunkSize = 8;
+
+    private int clientPoolSize = 10;
+
+    private Boolean validHeader = true;
 }

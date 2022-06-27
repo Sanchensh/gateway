@@ -1,19 +1,24 @@
 package io.gateway.server;
 
+import io.gateway.client.ChannelDTO;
+import io.gateway.client.GatewayClientChannelPool;
 import io.gateway.common.Constants;
 import io.gateway.common.SessionContext;
+import io.gateway.config.GatewayServerProperties;
 import io.gateway.exception.GatewayServerException;
-import io.gateway.timer.TimerController;
-import io.gateway.util.ByteBufManager;
+import io.gateway.exception.HandleException;
+import io.gateway.timer.HandleTimeout;
+import io.gateway.util.ChannelUtil;
+import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.channel.*;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
+
+import java.util.Objects;
 
 import static io.netty.channel.ChannelFutureListener.CLOSE;
 import static io.netty.handler.codec.http.HttpResponseStatus.CONTINUE;
@@ -24,6 +29,14 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 @Slf4j
 @ChannelHandler.Sharable
 public class GatewayServerHandler extends ChannelInboundHandlerAdapter {
+    private GatewayServerProperties properties;
+
+    public GatewayServerHandler(GatewayServerProperties properties) {
+        check(properties);
+        this.properties = properties;
+        GatewayClientChannelPool.instance.init(properties);
+    }
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         try {
@@ -35,31 +48,75 @@ public class GatewayServerHandler extends ChannelInboundHandlerAdapter {
             SessionContext sessionContext = StringUtils.hasLength(timeout)
                     ? new SessionContext(Long.parseLong(timeout), ctx.channel())
                     : new SessionContext(ctx.channel());
-            TimerController.startTimer(sessionContext);//该请求超时设置
+            HandleTimeout.startTimer(sessionContext);//该请求超时设置
             sessionContext.setRequest(fullHttpRequest);
-            ProxyRunner.run(sessionContext);
+            call(sessionContext, 0);
+        } catch (Exception e) {
+            log.error("Handle request occurred some errors, message ", e);
         } finally {
-            ByteBufManager.deepSafeRelease(msg);//释放请求数据，避免堆外内存泄露
+            ReferenceCountUtil.release(msg);//释放请求数据，避免堆外内存泄露
         }
     }
 
+    private void call(SessionContext sessionContext, int retry) {
+        //将host设置到context中，可以直接使用，避免字符串的拼接与拆解
+        sessionContext.setTargetURL("key");
+        ChannelDTO channelDTO = GatewayClientChannelPool.instance.poll("localhost", 8888, "key");
+        if (Objects.nonNull(channelDTO.getBootstrap())) { //如果是新建立的连接
+            Bootstrap bootstrap = channelDTO.getBootstrap();
+            bootstrap.connect().addListener((ChannelFutureListener) future -> {
+                if (future.isSuccess()) {
+                    Channel channel = future.channel();
+                    ChannelUtil.attributeSessionContext(channel, sessionContext);
+                    channel.writeAndFlush(callClient()).addListener((ChannelFutureListener) future1 -> handleIfError(future1, sessionContext, retry));
+                } else {
+                    handleIfError(future, sessionContext, retry);
+                }
+            });
+        } else {//如果连接池有连接，并且返回，则直接用已有的连接调用
+            Channel channel = channelDTO.getChannel();
+            ChannelUtil.attributeSessionContext(channel, sessionContext);
+            channel.writeAndFlush(callClient()).addListener((ChannelFutureListener) future -> handleIfError(future, sessionContext, retry));
+        }
+    }
+
+    private void handleIfError(ChannelFuture future, SessionContext sessionContext, int retry) {
+        if (retry < properties.getRetry()) {
+            call(sessionContext, retry + 1);
+        }
+        if (!future.isSuccess()) {
+            HandleException.errorProcess(sessionContext, new GatewayServerException("Connect to client failed")); //如果retry次数达到还无法正确响应，则给客户端返回错误信息
+        }
+    }
+
+    private FullHttpRequest callClient() {
+        return new DefaultFullHttpRequest(HTTP_1_1, HttpMethod.GET, "/hello");
+    }
+
+
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        log.error("系统内部错误(proxy server error)，详细信息：{}", cause);
-        GatewayServerException customException = new GatewayServerException(INTERNAL_SERVER_ERROR.code(), "internal server error(proxy server error)", cause.getMessage());
+        log.error("Internal server error ：{}", cause);
+        GatewayServerException gatewayServerException = new GatewayServerException(INTERNAL_SERVER_ERROR, cause.getMessage());
         DefaultFullHttpResponse defaultFullHttpResponse = new DefaultFullHttpResponse(HTTP_1_1,
                 INTERNAL_SERVER_ERROR,
-                Unpooled.directBuffer().writeBytes(customException.getMessage().getBytes()));
+                Unpooled.directBuffer().writeBytes(gatewayServerException.getMessage().getBytes()));
         ctx.writeAndFlush(defaultFullHttpResponse).addListener(CLOSE);
     }
 
     @Override
     public void userEventTriggered(final ChannelHandlerContext ctx, final Object evt) throws Exception {
         // 如果是超时,则对连接进行关闭
-        if (!(evt instanceof IdleStateEvent)) {
-            super.userEventTriggered(ctx, evt);
-            return;
+        if (evt instanceof IdleStateEvent) {
+            ctx.channel().closeFuture();
         }
-        ctx.channel().closeFuture();
+        super.userEventTriggered(ctx, evt);
     }
+
+    private void check(GatewayServerProperties properties) {
+        if (properties.getRetry() < 0) {
+            throw new IllegalArgumentException("The parameter of retry must be >= 0");
+        }
+    }
+
 }

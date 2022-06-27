@@ -2,7 +2,6 @@ package io.gateway.filter;
 
 import io.gateway.common.SessionContext;
 import io.gateway.exception.GatewayServerException;
-import io.gateway.util.ByteBufManager;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;
@@ -14,7 +13,6 @@ public abstract class AbstractFilterContext {
 
     public void fireNext(SessionContext sessionContext) throws GatewayServerException {
         if (Objects.isNull(next)) {
-            ByteBufManager.close(sessionContext, new GatewayServerException("filter empty error", "the next filter is empty"));
             return;
         }
         fire0(next, sessionContext);
@@ -27,7 +25,6 @@ public abstract class AbstractFilterContext {
     public void fireFilter(String filterName, SessionContext sessionContext) throws GatewayServerException {
         AbstractFilterContext filterContext = GatewayFilterPipeLine.instance.get(filterName);
         if (Objects.isNull(filterContext)) {
-            ByteBufManager.close(sessionContext, new GatewayServerException("filter empty error", "the next filter is empty"));
             return;
         }
         fire0(filterContext, sessionContext);
@@ -38,7 +35,6 @@ public abstract class AbstractFilterContext {
             filterContext.getFilter().run(filterContext, sessionContext);
         } catch (GatewayServerException e) {
             log.error("系统内部错误，错误信息：", e);
-            ByteBufManager.close(sessionContext, e);
         }
     }
 

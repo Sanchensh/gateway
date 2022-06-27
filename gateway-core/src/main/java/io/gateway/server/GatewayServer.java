@@ -55,7 +55,8 @@ public class GatewayServer {
     }
 
     public void startServer() throws InterruptedException {
-        ChannelFuture channelFuture = config(bossGroup, workGroup).bind(8081).sync();
+        log.info("Gateway Server start on port " + properties.getPort());
+        ChannelFuture channelFuture = config(bossGroup, workGroup).bind(properties.getPort()).sync();
         channelFuture.channel().closeFuture().sync();
     }
 
@@ -69,27 +70,27 @@ public class GatewayServer {
         @Override
         public void initChannel(Channel ch) throws Exception {
             ChannelPipeline pipeline = ch.pipeline();
-            pipeline.addLast(new IdleStateHandler(30, ZERO, ZERO, TimeUnit.SECONDS));
+            pipeline.addLast(new IdleStateHandler(properties.getIdle(), ZERO, ZERO, TimeUnit.SECONDS));
             pipeline.addLast(new HttpResponseEncoder());
-            pipeline.addLast(new HttpRequestDecoder(ALL_MAX_SIZE, ALL_MAX_SIZE, ALL_MAX_SIZE, Boolean.TRUE));
+            pipeline.addLast(new HttpRequestDecoder(properties.getMaxInitialSize() * 1024, properties.getMaxHeaderSize() * 1024, properties.getMaxChunkSize() * 1024, properties.getValidHeader()));
             pipeline.addLast(new HttpServerKeepAliveHandler());
             pipeline.addLast(new HttpObjectAggregator(properties.getContentLength() * 1024 * 1024));
-            pipeline.addLast(new GatewayServerHandler());
+            pipeline.addLast(new GatewayServerHandler(properties));
         }
     }
 
     void check(GatewayServerProperties p) {
-        if (properties.getBoss() <= 0) {
+        if (p.getBoss() <= 0) {
             throw new IllegalArgumentException("The size of boss thread pool must be > 0");
         }
-        if (properties.getWork() <= 0) {
+        if (p.getWork() <= 0) {
             throw new IllegalArgumentException("The size of work thread pool must be > 0");
         }
-        if (properties.getConnectTimeout() <= 0) {
+        if (p.getConnectTimeout() <= 0) {
             throw new IllegalArgumentException("The size of work thread pool must be > 0");
         }
 
-        if (properties.getContentLength() <= 0) {
+        if (p.getContentLength() <= 0) {
             throw new IllegalArgumentException("The max content-length must be > 0");
         }
     }

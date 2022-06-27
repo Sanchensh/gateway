@@ -2,8 +2,8 @@ package io.gateway.client;
 
 import io.gateway.common.SessionContext;
 import io.gateway.exception.GatewayServerException;
-import io.gateway.timer.TimerController;
-import io.gateway.util.ByteBufManager;
+import io.gateway.timer.HandleTimeout;
+import io.gateway.util.ChannelUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
@@ -12,25 +12,29 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import lombok.extern.slf4j.Slf4j;
 
+import java.sql.Time;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.TimeUnit;
+
 import static io.netty.channel.ChannelFutureListener.CLOSE;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 @Slf4j
 @ChannelHandler.Sharable
-public class HttpHandler extends ChannelInboundHandlerAdapter {
+public class HttpClientHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         SessionContext sessionContext = ChannelUtil.getSessionContext(ctx.channel());
         //写回数据到客户端，并且需要关闭超时，同时需要清理SessionContext并将Channel放回到池中
-        TimerController.stopTimer(sessionContext);
+        HandleTimeout.stopTimer(sessionContext);
         sessionContext.getServerChannel().writeAndFlush(msg).addListener((ChannelFutureListener) future -> {
             if (future.isSuccess()) {
-                DefaultChannelPool.INSTANCE.offer(ctx.channel(), sessionContext.getTargetURL());
+                ChannelUtil.clearSessionContext(ctx.channel());
+                GatewayClientChannelPool.instance.offer(ctx.channel(), sessionContext.getTargetURL());
             } else {
-                log.error("写回数据给客户端出错，错误信息；", future.cause());
-                ctx.channel().closeFuture();
-                ByteBufManager.close(sessionContext, new GatewayServerException("返回数据出错", "es返回数据给客户端出错，请联系管理员"));
+                ChannelUtil.clearSessionContext(ctx.channel());
             }
         });
     }
@@ -40,10 +44,11 @@ public class HttpHandler extends ChannelInboundHandlerAdapter {
         log.error("系统内部错误(call es error)，详细信息：", cause);
         SessionContext sessionContext = ChannelUtil.getSessionContext(ctx.channel());
         //先关闭超时，再写回数据
-        TimerController.stopTimer(sessionContext);
-        GatewayServerException customException = new GatewayServerException(INTERNAL_SERVER_ERROR.code(), "internal server error(call es error)", cause.getMessage());
+        HandleTimeout.stopTimer(sessionContext);
+        GatewayServerException customException = new GatewayServerException(INTERNAL_SERVER_ERROR, cause.getMessage());
         DefaultFullHttpResponse errorResponse = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, Unpooled.directBuffer().writeBytes(customException.getMessage().getBytes()));
         ctx.channel().closeFuture();
+        ChannelUtil.clearSessionContext(ctx.channel());
         //出现异常，关闭客户端Channel
         sessionContext.getServerChannel().writeAndFlush(errorResponse)
                 .addListener(CLOSE);
@@ -51,7 +56,6 @@ public class HttpHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        DefaultChannelPool.INSTANCE.removeChannel(ctx.channel());
+        GatewayClientChannelPool.instance.removeChannel(ctx.channel());
     }
-
 }

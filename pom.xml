@@ -27,12 +27,18 @@
                 <artifactId>netty-all</artifactId>
                 <version>${netty.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.jctools</groupId>
+                <artifactId>jctools-core</artifactId>
+                <version>${jctools.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <properties>
         <java.version>17</java.version>
         <netty.version>4.1.76.Final</netty.version>
+        <jctools.version>3.3.0</jctools.version>
     </properties>
 
     <dependencies>

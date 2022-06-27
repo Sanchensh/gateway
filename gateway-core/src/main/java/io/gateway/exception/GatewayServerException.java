@@ -3,18 +3,14 @@ package io.gateway.exception;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
 public class GatewayServerException extends Exception {
-    private String message;
-    private int status;
+    private String message = "";
+    private HttpResponseStatus status = HttpResponseStatus.OK;
 
-    public GatewayServerException(String type, String reason) {
-        this(HttpResponseStatus.INTERNAL_SERVER_ERROR.code(), type, reason);
+    public GatewayServerException(String reason) {
+        this(HttpResponseStatus.INTERNAL_SERVER_ERROR, reason);
     }
 
-    public GatewayServerException(String message) {
-        this("unknown error", message);
-    }
-
-    public GatewayServerException(int status, String type, String reason) {
+    public GatewayServerException(HttpResponseStatus status, String reason) {
         this.message = reason;
         this.status = status;
     }
@@ -24,7 +20,7 @@ public class GatewayServerException extends Exception {
         return this.message;
     }
 
-    public int getStatus() {
+    public HttpResponseStatus getStatus() {
         return status;
     }
 }
