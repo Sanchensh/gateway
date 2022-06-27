@@ -6,7 +6,6 @@ import io.netty.channel.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.CollectionUtils;
 
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -66,15 +65,12 @@ public enum GatewayClientChannelPool {
             while (Objects.isNull(channel) && i++ < dividePoolSize) {
                 channel = channels.pollFirst();
                 if (Objects.isNull(channel)) {
-                    System.out.println("asdfadsf");
-                    continue;
+                    break;
                 }
                 if (!channel.isActive() || !channel.isOpen()) {// 是否是active状态，可能节点挂掉
-                    System.out.println("asdfadsf");
                     channel = null;
                 }
                 if (Objects.nonNull(ChannelUtil.getSessionContext(channel))) {// 这里防止多线程情况下channel中的SessionContext被覆盖了\
-                    System.out.println("asdfadsf");
                     channel = null;
                 }
             }
