@@ -1,4 +1,4 @@
-package io.gateway.client;
+package io.gateway.server.client;
 
 import io.gateway.common.SessionContext;
 import io.gateway.exception.GatewayServerException;

@@ -2,7 +2,7 @@ package io.gateway.exception;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
 
-public class GatewayServerException extends Exception {
+public class GatewayServerException extends RuntimeException {
     private String message = "";
     private HttpResponseStatus status = HttpResponseStatus.OK;
 

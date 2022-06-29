@@ -1,9 +1,12 @@
-package io.gateway.client;
+package io.gateway.server.client;
 
 import io.gateway.config.GatewayServerProperties;
+import io.gateway.exception.GatewayServerException;
 import io.gateway.util.ChannelUtil;
+import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import lombok.extern.slf4j.Slf4j;
+import org.graalvm.collections.Pair;
 import org.springframework.util.CollectionUtils;
 
 import java.util.Objects;
@@ -57,7 +60,7 @@ public enum GatewayClientChannelPool {
      * @param port 目标端口
      * @return 如果是新连接，则返回ChannelFuture；如果是已有连接，则返回Channel
      */
-    public ChannelDTO poll(String ip, int port, String host) {
+    public Pair<Channel, Bootstrap> poll(String ip, int port, String host) {
         ConcurrentLinkedDeque<Channel> channels = pool.get(host);
         Channel channel = null;
         int i = 0;
@@ -76,9 +79,13 @@ public enum GatewayClientChannelPool {
             }
         }
         if (Objects.isNull(channel) || !channel.isActive() || !channel.isOpen()) {
-            return new ChannelDTO(null, httpClient.get().newChannel(ip, port));
+            HttpClient client = httpClient.get();
+            if (Objects.isNull(client)){
+                throw new GatewayServerException("please initialize the http client");
+            }
+            return Pair.create(null,client.newChannel(ip, port));
         }
-        return new ChannelDTO(channel, null);
+        return Pair.create(channel, null);
     }
 
     public void init(GatewayServerProperties properties) {
