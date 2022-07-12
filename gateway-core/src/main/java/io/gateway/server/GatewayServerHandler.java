@@ -1,6 +1,6 @@
 package io.gateway.server;
 
-import io.gateway.server.client.GatewayClientChannelPool;
+import io.gateway.server.client.GatewayChannelPool;
 import io.gateway.common.Constants;
 import io.gateway.common.SessionContext;
 import io.gateway.config.GatewayServerProperties;
@@ -34,9 +34,8 @@ public class GatewayServerHandler extends ChannelInboundHandlerAdapter {
     private GatewayServerProperties properties;
 
     public GatewayServerHandler(GatewayServerProperties properties) {
-        properties.check();
         this.properties = properties;
-        GatewayClientChannelPool.instance.init(properties);
+        GatewayChannelPool.instance.init(properties);
     }
 
     @Override
@@ -64,7 +63,7 @@ public class GatewayServerHandler extends ChannelInboundHandlerAdapter {
         sessionContext.setTargetURL("localhost:8888");
         LoadBalance loadBalance = new RoundRobinBalance();
         loadBalance.acquire(sessionContext);
-        Pair<Channel, Bootstrap> pair = GatewayClientChannelPool.instance.poll("localhost", 8888, "localhost:8888");
+        Pair<Channel, Bootstrap> pair = GatewayChannelPool.instance.poll("localhost", 8888, "localhost:8888");
         if (Objects.nonNull(pair.getRight())) { //如果是新建立的连接
             Bootstrap bootstrap = pair.getRight();
             bootstrap.connect().addListener((ChannelFutureListener) future -> {

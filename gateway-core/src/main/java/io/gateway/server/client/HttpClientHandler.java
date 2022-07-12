@@ -29,7 +29,7 @@ public class HttpClientHandler extends ChannelInboundHandlerAdapter {
             ChannelUtil.clearSessionContext(ctx.channel());
             if (future.isSuccess()) {
 //                异步放入池中，避免阻塞导致的性能缺失
-                submit(() -> GatewayClientChannelPool.instance.offer(ctx.channel(), sessionContext.getTargetURL()));
+                submit(() -> GatewayChannelPool.instance.offer(ctx.channel(), sessionContext.getTargetURL()));
             }
         });
     }
