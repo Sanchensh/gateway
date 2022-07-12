@@ -25,6 +25,7 @@
         <netty.version>4.1.76.Final</netty.version>
         <jctools.version>3.3.0</jctools.version>
         <nacos.version>2.1.0</nacos.version>
+        <sentinel.version>1.8.4</sentinel.version>
     </properties>
 
     <dependencyManagement>
@@ -43,6 +44,11 @@
                 <groupId>com.alibaba.nacos</groupId>
                 <artifactId>nacos-client</artifactId>
                 <version>${nacos.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.csp</groupId>
+                <artifactId>sentinel-core</artifactId>
+                <version>${sentinel.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
