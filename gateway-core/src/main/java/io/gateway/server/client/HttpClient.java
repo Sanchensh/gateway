@@ -14,7 +14,6 @@ import static io.gateway.common.Constants.GATEWAY_CLIENT_BOSS_NAME;
 
 public class HttpClient {
     private NioEventLoopGroup bossGroup;
-
     private int connectTimeout;
     private GatewayServerProperties properties;
 

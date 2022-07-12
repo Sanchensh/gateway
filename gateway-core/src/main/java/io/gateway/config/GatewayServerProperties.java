@@ -50,4 +50,13 @@ public class GatewayServerProperties {
     private int clientPoolSize = 64;
 
     private Boolean validHeader = true;
+
+    public void check() {
+        if (this.retry < 0) {
+            throw new IllegalArgumentException("The parameter of retry must be >= 0");
+        }
+        if (this.clientPoolSize <= 0) {
+            throw new IllegalArgumentException("Client pool size must be > 0");
+        }
+    }
 }

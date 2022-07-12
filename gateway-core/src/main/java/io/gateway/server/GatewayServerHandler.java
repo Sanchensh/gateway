@@ -34,7 +34,7 @@ public class GatewayServerHandler extends ChannelInboundHandlerAdapter {
     private GatewayServerProperties properties;
 
     public GatewayServerHandler(GatewayServerProperties properties) {
-        check(properties);
+        properties.check();
         this.properties = properties;
         GatewayClientChannelPool.instance.init(properties);
     }
@@ -114,12 +114,6 @@ public class GatewayServerHandler extends ChannelInboundHandlerAdapter {
             ctx.channel().closeFuture();
         }
         super.userEventTriggered(ctx, evt);
-    }
-
-    private void check(GatewayServerProperties properties) {
-        if (properties.getRetry() < 0) {
-            throw new IllegalArgumentException("The parameter of retry must be >= 0");
-        }
     }
 
 }
