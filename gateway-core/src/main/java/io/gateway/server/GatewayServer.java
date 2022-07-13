@@ -12,6 +12,8 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpServerKeepAliveHandler;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
 
@@ -76,6 +78,7 @@ public class GatewayServer {
             pipeline.addLast(new HttpRequestDecoder(properties.getMaxInitialSize() * 1024, properties.getMaxHeaderSize() * 1024, properties.getMaxChunkSize() * 1024, properties.getValidHeader()));
             pipeline.addLast(new HttpServerKeepAliveHandler());
             pipeline.addLast(new HttpObjectAggregator(properties.getContentLength() * 1024 * 1024));
+//            pipeline.addLast(new LoggingHandler(LogLevel.ERROR));
             pipeline.addLast(new GatewayServerHandler(properties));
         }
     }

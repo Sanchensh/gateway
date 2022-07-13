@@ -11,11 +11,9 @@ import static io.netty.channel.ChannelFutureListener.CLOSE;
 
 @Slf4j
 public class HandleException {
-    public static void errorProcess(SessionContext context, Throwable throwable) {
+    public static synchronized void errorProcess(SessionContext context, Throwable throwable) {
         HandleTimeout.stopTimer(context);
-
         context.getServerChannel().writeAndFlush(throwable).addListener(CLOSE);
-
         if (Objects.nonNull(context.getClientChannel())){
             context.getClientChannel().closeFuture();
             ChannelUtil.clearSessionContext(context.getClientChannel());
