@@ -45,54 +45,11 @@ public class GatewayServerHandler extends ChannelInboundHandlerAdapter {
             if (is100ContinueExpected(fullHttpRequest)) { //HTTP 100 Continue 信息型状态响应码表示目前为止一切正常, 客户端应该继续请求, 如果已完成请求则忽略.
                 ctx.write(new DefaultFullHttpResponse(HTTP_1_1, CONTINUE));
             }
-            String timeout = fullHttpRequest.headers().get(Constants.TIMEOUT);
-            SessionContext sessionContext = StringUtils.hasLength(timeout)
-                    ? new SessionContext(Long.parseLong(timeout), ctx.channel())
-                    : new SessionContext(ctx.channel());
-            HandleTimeout.startTimer(sessionContext);//该请求超时设置
-            sessionContext.setRequest(fullHttpRequest);
-            call(sessionContext, 0);
+            SessionContext sessionContext = new SessionContext(ctx.channel(), fullHttpRequest);
+            Invoke.call(sessionContext, 0, properties.getRetry());
         } catch (Exception e) {
             log.error("Handle request occurred some errors, message ", e);
             ReferenceCountUtil.release(msg);//释放请求数据，避免堆外内存泄露
-        }
-    }
-
-    private void call(SessionContext sessionContext, int retry) {
-        //将host设置到context中，可以直接使用，避免字符串的拼接与拆解
-        sessionContext.setTargetURL("localhost:8888");
-        LoadBalance loadBalance = new RoundRobinBalance();
-        loadBalance.acquire(sessionContext);
-        Pair<Channel, Bootstrap> pair = GatewayChannelPool.instance.poll("localhost", 8888, "localhost:8888");
-        if (Objects.nonNull(pair.getRight())) { //如果是新建立的连接
-            Bootstrap bootstrap = pair.getRight();
-            bootstrap.connect().addListener((ChannelFutureListener) future -> {
-                if (future.isSuccess()) {
-                    Channel channel = future.channel();
-                    ChannelUtil.attributeSessionContext(channel, sessionContext);
-                    channel.writeAndFlush(get(sessionContext)).addListener((ChannelFutureListener) future1 -> handleIfError(future1, sessionContext, retry));
-                } else {
-                    handleIfError(future, sessionContext, retry);
-                }
-            });
-        } else {//如果连接池有连接，并且返回，则直接用已有的连接调用
-            Channel channel = pair.getLeft();
-            ChannelUtil.attributeSessionContext(channel, sessionContext);
-            channel.writeAndFlush(get(sessionContext)).addListener((ChannelFutureListener) future -> handleIfError(future, sessionContext, retry));
-        }
-    }
-
-    FullHttpRequest get(SessionContext sessionContext){
-        return sessionContext.getRequest();
-//        return  new DefaultFullHttpRequest(HTTP_1_1,HttpMethod.GET,"/hello/sss/1");
-    }
-
-    private void handleIfError(ChannelFuture future, SessionContext sessionContext, int retry) {
-        if (retry < properties.getRetry()) {
-            call(sessionContext, retry + 1);
-        }
-        if (!future.isSuccess()) {
-            HandleException.errorProcess(sessionContext, new GatewayServerException("Connect to client failed")); //如果retry次数达到还无法正确响应，则给客户端返回错误信息
         }
     }
 

@@ -26,6 +26,8 @@
         <jctools.version>3.3.0</jctools.version>
         <nacos.version>2.1.0</nacos.version>
         <sentinel.version>1.8.4</sentinel.version>
+        <lang3.version>3.12.0</lang3.version>
+        <collections4.version>4.4</collections4.version>
     </properties>
 
     <dependencyManagement>
@@ -49,6 +51,16 @@
                 <groupId>com.alibaba.csp</groupId>
                 <artifactId>sentinel-core</artifactId>
                 <version>${sentinel.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${lang3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-collections4</artifactId>
+                <version>${collections4.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
