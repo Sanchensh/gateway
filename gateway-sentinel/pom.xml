@@ -7,18 +7,16 @@
         <artifactId>gateway</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
-    <artifactId>gateway-test</artifactId>
+    <artifactId>gateway-sentinel</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>gateway-sentinel</name>
+    <description>gateway-sentinel</description>
     <dependencies>
         <dependency>
-            <groupId>io.gateway</groupId>
-            <artifactId>gateway-core</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-transport-simple-http</artifactId>
+            <version>1.8.4</version>
         </dependency>
-        <!--        <dependency>-->
-<!--            <groupId>org.springframework.cloud</groupId>-->
-<!--            <artifactId>spring-cloud-starter-gateway</artifactId>-->
-<!--            <version>3.1.3</version>-->
-<!--        </dependency>-->
     </dependencies>
 
 </project>
