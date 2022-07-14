@@ -11,7 +11,6 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.handler.codec.http.FullHttpRequest;
 import org.graalvm.collections.Pair;
 
 import java.util.Objects;
@@ -44,6 +43,9 @@ public class Invoke {
 
 
     private static void handleIfError(ChannelFuture future, SessionContext sessionContext, int retry, int maxRetry) {
+        if (future.isSuccess()){
+            return;
+        }
         if (retry < maxRetry) {
             call(sessionContext, retry + 1, maxRetry);
         }
@@ -51,4 +53,5 @@ public class Invoke {
             HandleException.errorProcess(sessionContext, new GatewayServerException("Connect to client failed")); //如果retry次数达到还无法正确响应，则给客户端返回错误信息
         }
     }
+
 }
