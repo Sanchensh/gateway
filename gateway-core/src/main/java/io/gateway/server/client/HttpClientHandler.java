@@ -1,7 +1,6 @@
 package io.gateway.server.client;
 
 import io.gateway.common.SessionContext;
-import io.gateway.exception.GatewayServerException;
 import io.gateway.timer.HandleTimeout;
 import io.gateway.util.ChannelUtil;
 import io.netty.buffer.Unpooled;
