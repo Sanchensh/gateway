@@ -2,14 +2,14 @@ package io.gateway.server;
 
 import io.gateway.common.SessionContext;
 import io.gateway.config.GatewayServerProperties;
-import io.gateway.exception.GatewayServerException;
 import io.gateway.server.client.GatewayChannelPool;
 import io.gateway.timer.HandleTimeout;
 import io.gateway.util.ChannelUtil;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
