@@ -4,15 +4,18 @@ import io.gateway.common.SessionContext;
 import io.gateway.config.GatewayServerProperties;
 import io.gateway.exception.GatewayServerException;
 import io.gateway.server.client.GatewayChannelPool;
+import io.gateway.timer.HandleTimeout;
+import io.gateway.util.ChannelUtil;
+import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.channel.*;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.graalvm.collections.Pair;
+
+import java.util.Objects;
 
 import static io.netty.channel.ChannelFutureListener.CLOSE;
 import static io.netty.handler.codec.http.HttpResponseStatus.CONTINUE;
@@ -39,13 +42,14 @@ public class GatewayServerHandler extends ChannelInboundHandlerAdapter {
             }
             SessionContext sessionContext = new SessionContext(ctx.channel(), fullHttpRequest);
             HandleTimeout.startTimer(sessionContext);//该请求超时设置
-            call(sessionContext, 0, properties.getRetry());
-        } finally {
+            call(sessionContext);
+        } catch (Exception e) {
+            log.error("服务出错{}", e);
             ReferenceCountUtil.release(msg);//释放请求数据，避免堆外内存泄露
         }
     }
 
-    public static void call(SessionContext sessionContext, int retry, int maxRetry) {
+    public static void call(SessionContext sessionContext) {
         //将host设置到context中，可以直接使用，避免字符串的拼接与拆解
         sessionContext.setTargetURL("localhost:8888");
 //        LoadBalance loadBalance = new RoundRobinBalance();
@@ -57,38 +61,22 @@ public class GatewayServerHandler extends ChannelInboundHandlerAdapter {
                 if (future.isSuccess()) {
                     Channel channel = future.channel();
                     ChannelUtil.attributeSessionContext(channel, sessionContext);
-                    channel.writeAndFlush(get(sessionContext))
-                            .addListener((ChannelFutureListener) future1 -> handleIfError(future1, sessionContext, retry, maxRetry));
-                } else {
-                    handleIfError(future, sessionContext, retry, maxRetry);
+                    channel.writeAndFlush(sessionContext.getRequest())
+                            .addListener(new HandleErrorListener(sessionContext));
                 }
-            });
+            }).addListener(new HandleErrorListener(sessionContext));
         } else {//如果连接池有连接，并且返回，则直接用已有的连接调用
             Channel channel = pair.getLeft();
             ChannelUtil.attributeSessionContext(channel, sessionContext);
-            channel.writeAndFlush(get(sessionContext)).addListener((ChannelFutureListener) future -> handleIfError(future, sessionContext, retry, maxRetry));
+            channel.writeAndFlush(sessionContext.getRequest())
+                    .addListener(new HandleErrorListener(sessionContext));
         }
-    }
-
-    static FullHttpRequest get(SessionContext context) {
-        return new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/hello");
-    }
-
-
-    private static void handleIfError(ChannelFuture future, SessionContext sessionContext, int retry, int maxRetry) {
-        if (future.isSuccess()) {
-            return;
-        }
-        HandleException.errorProcess(sessionContext, new GatewayServerException("Connect to client failed")); //如果retry次数达到还无法正确响应，则给客户端返回错误信息
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         log.error("Internal server error ：{}", cause);
-        GatewayServerException gatewayServerException = new GatewayServerException(INTERNAL_SERVER_ERROR, cause.getMessage());
-        DefaultFullHttpResponse defaultFullHttpResponse = new DefaultFullHttpResponse(HTTP_1_1,
-                INTERNAL_SERVER_ERROR,
-                Unpooled.directBuffer().writeBytes(gatewayServerException.getMessage().getBytes()));
+        DefaultFullHttpResponse defaultFullHttpResponse = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, Unpooled.directBuffer().writeBytes(cause.getMessage().getBytes()));
         ctx.writeAndFlush(defaultFullHttpResponse).addListener(CLOSE);
     }
 

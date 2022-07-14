@@ -22,13 +22,15 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 public class HttpClientHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        SessionContext sessionContext = ChannelUtil.getSessionContext(ctx.channel());
+        final SessionContext sessionContext = ChannelUtil.getSessionContext(ctx.channel());
         //写回数据到客户端，并且需要关闭超时，同时需要清理SessionContext并将Channel放回到池中
         HandleTimeout.stopTimer(sessionContext);
+        //将channel与SessionContext解绑
+        ChannelUtil.clearSessionContext(ctx.channel());
+        //客户端channel写回返回结果
         sessionContext.getServerChannel().writeAndFlush(msg).addListener((ChannelFutureListener) future -> {
-            ChannelUtil.clearSessionContext(ctx.channel());
             if (future.isSuccess()) {
-//                异步放入池中，避免阻塞导致的性能缺失
+                //异步放入池中，避免阻塞导致的性能缺失
                 submit(() -> GatewayChannelPool.instance.offer(ctx.channel(), sessionContext.getTargetURL()));
             }
         });
@@ -39,18 +41,13 @@ public class HttpClientHandler extends ChannelInboundHandlerAdapter {
         SessionContext sessionContext = ChannelUtil.getSessionContext(ctx.channel());
         //先关闭超时，再写回数据
         HandleTimeout.stopTimer(sessionContext);
-        GatewayServerException customException = new GatewayServerException(INTERNAL_SERVER_ERROR, cause.getMessage());
-        DefaultFullHttpResponse errorResponse = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, Unpooled.directBuffer().writeBytes(customException.getMessage().getBytes()));
-        //出现异常，关闭客户端Channel
-        sessionContext.getServerChannel().writeAndFlush(errorResponse)
-                .addListener(CLOSE);
-
-        ctx.channel().closeFuture();
+        //将channel与SessionContext解绑
         ChannelUtil.clearSessionContext(ctx.channel());
-    }
-
-    @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        super.userEventTriggered(ctx,evt);
+        //关闭channel
+        ctx.channel().closeFuture();
+        //构建异常response
+        DefaultFullHttpResponse errorResponse = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, Unpooled.directBuffer().writeBytes(cause.getMessage().getBytes()));
+        //客户端写回response，关闭客户端Channel
+        sessionContext.getServerChannel().writeAndFlush(errorResponse).addListener(CLOSE);
     }
 }
