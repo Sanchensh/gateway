@@ -1,6 +1,5 @@
 package io.gateway.common;
 
-import io.gateway.timer.HandleTimeout;
 import io.netty.channel.Channel;
 import io.netty.channel.DefaultChannelId;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -16,11 +15,14 @@ public class SessionContext {
     private Channel clientChannel;
     private FullHttpRequest request;
     private String targetURL;
-    private long timeout;
+    private long timeout = 5;
 
     public SessionContext(Channel serverChannel, FullHttpRequest request) {
         String timeout = request.headers().get(Constants.TIMEOUT);
-        this.timeout = StringUtils.isNumeric(timeout) ? Long.parseLong(timeout) : 5 * 1000;
+        if (StringUtils.isNumeric(timeout)) {
+            long t = Long.parseLong(timeout);
+            this.timeout = t > 0 ? t : 5;
+        }
         this.serverChannel = serverChannel;
         this.request = request;
         this.key = DefaultChannelId.newInstance().asLongText();

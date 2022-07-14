@@ -1,8 +1,7 @@
 package io.gateway.server;
 
 import io.gateway.common.SessionContext;
-import io.gateway.exception.HandleException;
-import io.gateway.util.ChannelUtil;
+import io.gateway.util.ByteBufferUtil;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 
@@ -19,6 +18,6 @@ public class HandleErrorListener implements ChannelFutureListener {
         if (future.isSuccess()) {
             return;
         }
-//        HandleException.errorProcess(sessionContext, future.cause());
+//        ByteBufferUtil.safeRelease(sessionContext);
     }
 }

@@ -4,6 +4,7 @@ import io.gateway.common.SessionContext;
 import io.gateway.config.GatewayServerProperties;
 import io.gateway.server.client.GatewayChannelPool;
 import io.gateway.timer.HandleTimeout;
+import io.gateway.util.ByteBufferUtil;
 import io.gateway.util.ChannelUtil;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
@@ -35,17 +36,19 @@ public class GatewayServerHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        FullHttpRequest request = null;
         try {
-            FullHttpRequest fullHttpRequest = (FullHttpRequest) msg;
-            if (is100ContinueExpected(fullHttpRequest)) { //HTTP 100 Continue 信息型状态响应码表示目前为止一切正常, 客户端应该继续请求, 如果已完成请求则忽略.
+            request = (FullHttpRequest) msg;
+            if (is100ContinueExpected(request)) { //HTTP 100 Continue 信息型状态响应码表示目前为止一切正常, 客户端应该继续请求, 如果已完成请求则忽略.
                 ctx.write(new DefaultFullHttpResponse(HTTP_1_1, CONTINUE));
             }
-            SessionContext sessionContext = new SessionContext(ctx.channel(), fullHttpRequest);
+            SessionContext sessionContext = new SessionContext(ctx.channel(), request);
             HandleTimeout.startTimer(sessionContext);//该请求超时设置
             call(sessionContext);
         } catch (Exception e) {
             log.error("服务出错{}", e);
-            ReferenceCountUtil.release(msg);//释放请求数据，避免堆外内存泄露
+            //释放请求数据，避免堆外内存泄露
+            ByteBufferUtil.safeRelease(request);
         }
     }
 
