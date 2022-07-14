@@ -31,7 +31,7 @@ public enum GatewayChannelPool {
         ConcurrentLinkedDeque<Channel> channels = channelPool.get(host);
         if (channels == null) {
             channels = new ConcurrentLinkedDeque<>();
-            channels.addFirst(channel);
+            channels.offerFirst(channel);
             channelPool.put(host, channels);
             return;
         }

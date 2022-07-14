@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 //@EnableGateway
 public class GatewayTestApplication {
     public static void main(String[] args) {
+        DirectMemoryReporter.getInstance().startReport();
         SpringApplication.run(GatewayTestApplication.class, args);
     }
 

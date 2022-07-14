@@ -11,7 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 @Data
 @ToString
 public class SessionContext {
-    private String key = DefaultChannelId.newInstance().asLongText();
+    private String key;
     private Channel serverChannel;
     private Channel clientChannel;
     private FullHttpRequest request;
@@ -23,6 +23,6 @@ public class SessionContext {
         this.timeout = StringUtils.isNumeric(timeout) ? Long.parseLong(timeout) : 5 * 1000;
         this.serverChannel = serverChannel;
         this.request = request;
-        HandleTimeout.startTimer(this);//该请求超时设置
+        this.key = DefaultChannelId.newInstance().asLongText();
     }
 }

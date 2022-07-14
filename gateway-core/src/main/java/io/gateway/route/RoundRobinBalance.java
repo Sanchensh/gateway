@@ -12,8 +12,6 @@ public class RoundRobinBalance implements LoadBalance{
         HttpMethod method = request.method();
         String uri = request.uri();
         HttpHeaders headers = request.headers();
-
-        System.out.println(uri);
         return null;
     }
 
