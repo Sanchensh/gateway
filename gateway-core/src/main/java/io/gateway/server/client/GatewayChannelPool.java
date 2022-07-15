@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Slf4j
-public enum GatewayClientChannelPool {
+public enum GatewayChannelPool {
     //单例
     instance;
     private static final ConcurrentHashMap<String, ConcurrentLinkedDeque<Channel>> channelPool = new ConcurrentHashMap<>();
@@ -31,7 +31,7 @@ public enum GatewayClientChannelPool {
         ConcurrentLinkedDeque<Channel> channels = channelPool.get(host);
         if (channels == null) {
             channels = new ConcurrentLinkedDeque<>();
-            channels.addFirst(channel);
+            channels.offerFirst(channel);
             channelPool.put(host, channels);
             return;
         }
@@ -47,7 +47,7 @@ public enum GatewayClientChannelPool {
      *
      * @param channel 指定的channel
      */
-    public static void removeChannel(Channel channel) {
+    public void removeChannel(Channel channel) {
         ConcurrentLinkedDeque<Channel> channels = channelPool.get(ChannelUtil.host(channel));
         if (!CollectionUtils.isEmpty(channels)) {
             channels.removeIf(chan -> (!chan.isActive() || !chan.isOpen() || !chan.isWritable()) &&
@@ -72,17 +72,19 @@ public enum GatewayClientChannelPool {
                 if (Objects.isNull(channel)) {
                     break;
                 }
-                if (!channel.isActive() || !channel.isOpen()) {// 是否是active状态，可能节点挂掉
+                // 是否是active状态，可能节点挂掉
+                if (!channel.isActive() || !channel.isOpen()) {
                     channel = null;
                 }
-                if (Objects.nonNull(ChannelUtil.getSessionContext(channel))) {// 这里防止多线程情况下channel中的SessionContext被覆盖了\
+                // 这里防止多线程情况下channel中的SessionContext被覆盖了
+                if (Objects.nonNull(ChannelUtil.getSessionContext(channel))) {
                     channel = null;
                 }
             }
         }
         if (Objects.isNull(channel) || !channel.isActive() || !channel.isOpen()) {
             if (Objects.isNull(httpClient)) {
-                throw new GatewayServerException("please initialize the http client");
+                throw new GatewayServerException("Please initialize the http client");
             }
             return Pair.create(null, httpClient.newChannel(ip, port));
         }

@@ -12,9 +12,12 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpServerKeepAliveHandler;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import static io.gateway.common.Constants.*;
@@ -28,15 +31,15 @@ public class GatewayServer {
     private NioEventLoopGroup workGroup;
 
     public GatewayServer(GatewayServerProperties properties) {
-        check(properties);
+        if (Objects.isNull(properties)) {
+            throw new NullPointerException("Gateway server properties can not be null");
+        }
+        properties.check();
         this.properties = properties;
-        this.bossGroup = getEventLoopGroup(true);
-        this.workGroup = getEventLoopGroup(false);
-    }
-
-    private NioEventLoopGroup getEventLoopGroup(boolean boss) {
-        return new NioEventLoopGroup(Runtime.getRuntime().availableProcessors() << (boss ? properties.getBoss() : properties.getWork()),
-                GatewayThreadFactory.create(boss ? GATEWAY_SERVER_BOSS_NAME : GATEWAY_SERVER_WORK_NAME, true));
+        this.bossGroup = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors() << properties.getBoss(),
+                GatewayThreadFactory.create(GATEWAY_SERVER_BOSS_NAME, true));
+        this.workGroup = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors() << properties.getWork(),
+                GatewayThreadFactory.create(GATEWAY_SERVER_WORK_NAME, true));
     }
 
     private ServerBootstrap config(NioEventLoopGroup bossGroup, NioEventLoopGroup workGroup) {
@@ -75,23 +78,9 @@ public class GatewayServer {
             pipeline.addLast(new HttpRequestDecoder(properties.getMaxInitialSize() * 1024, properties.getMaxHeaderSize() * 1024, properties.getMaxChunkSize() * 1024, properties.getValidHeader()));
             pipeline.addLast(new HttpServerKeepAliveHandler());
             pipeline.addLast(new HttpObjectAggregator(properties.getContentLength() * 1024 * 1024));
+//            pipeline.addLast(new LoggingHandler(LogLevel.ERROR));
             pipeline.addLast(new GatewayServerHandler(properties));
         }
     }
 
-    void check(GatewayServerProperties p) {
-        if (p.getBoss() <= 0) {
-            throw new IllegalArgumentException("The size of boss thread pool must be > 0");
-        }
-        if (p.getWork() <= 0) {
-            throw new IllegalArgumentException("The size of work thread pool must be > 0");
-        }
-        if (p.getConnectTimeout() <= 0) {
-            throw new IllegalArgumentException("The size of work thread pool must be > 0");
-        }
-
-        if (p.getContentLength() <= 0) {
-            throw new IllegalArgumentException("The max content-length must be > 0");
-        }
-    }
 }

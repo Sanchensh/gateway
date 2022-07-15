@@ -52,6 +52,18 @@ public class GatewayServerProperties {
     private Boolean validHeader = true;
 
     public void check() {
+        if (this.boss <= 0) {
+            throw new IllegalArgumentException("The size of boss thread pool must be > 0");
+        }
+        if (this.work <= 0) {
+            throw new IllegalArgumentException("The size of work thread pool must be > 0");
+        }
+        if (this.connectTimeout <= 0) {
+            throw new IllegalArgumentException("The size of work thread pool must be > 0");
+        }
+        if (this.contentLength <= 0) {
+            throw new IllegalArgumentException("The max content-length must be > 0");
+        }
         if (this.retry < 0) {
             throw new IllegalArgumentException("The parameter of retry must be >= 0");
         }
